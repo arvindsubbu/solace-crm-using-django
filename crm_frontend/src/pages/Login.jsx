@@ -1,5 +1,5 @@
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosInstace";
 import logo from "../assets/solace-logo.png";
@@ -32,6 +32,14 @@ function Login() {
       
     }
   };
+
+  useEffect(() => {
+  const token = localStorage.getItem("access");
+
+  if (token) {
+    navigate("/dashboard");
+  }
+}, []);
 
   return (
     <div

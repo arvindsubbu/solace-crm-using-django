@@ -3,16 +3,73 @@ import axios from "../api/axiosInstace";
 
 function Agents() {
   const [agents, setAgents] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    company: "",
-    email: "",
-    mobile: "",
-    status: "Active",
+  const [showModal, setShowModal] = useState(() => {
+    return localStorage.getItem("showModal") === "true";
   });
+
+  const [editingId, setEditingId] = useState(() => {
+    const v = localStorage.getItem("editingId");
+    return v ? Number(v) : null;
+  });
+
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem("agentFormData");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn("Failed to parse saved agent form data", e);
+      }
+    }
+
+    return {
+      name: "",
+      company: "",
+      email: "",
+      mobile: "",
+      status: "Active",
+    };
+  });
+
+  useEffect(() => {
+  localStorage.setItem("showModal", showModal);
+}, [showModal]);
+
+  // persist form contents so modal is restored after reload
+  useEffect(() => {
+    try {
+      localStorage.setItem("agentFormData", JSON.stringify(formData));
+    } catch (e) {
+      console.warn("Failed to save agent form data", e);
+    }
+  }, [formData]);
+
+  // persist editingId
+  useEffect(() => {
+    if (editingId !== null) {
+      localStorage.setItem("editingId", String(editingId));
+    } else {
+      localStorage.removeItem("editingId");
+    }
+  }, [editingId]);
+
+  // When agents load, if editingId exists restore the agent into the form
+  useEffect(() => {
+    if (editingId !== null && agents.length > 0) {
+      const agent = agents.find((a) => a.id === editingId);
+      if (agent) {
+        setFormData({
+          name: agent.name,
+          company: agent.company || "",
+          email: agent.email,
+          mobile: agent.mobile,
+          status: agent.status || "Active",
+        });
+        setShowModal(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agents]);
 
   // ================= FETCH AGENTS (READ) =================
   const fetchAgents = async () => {
@@ -39,13 +96,21 @@ function Agents() {
         await axios.post("/agents/", formData);
       }
 
-      setFormData({ name: "", company: "", email: "", mobile: "", status: "Active" });
-      setEditingId(null);
-      setShowModal(false);
+      setFormData({
+        name: "",
+        company: "",
+        email: "",
+        mobile: "",
+        status: "Active",
+      });
+        setEditingId(null);
+        localStorage.removeItem("editingId");
+        localStorage.removeItem("agentFormData");
+        setShowModal(false);
       fetchAgents();
     } catch (err) {
-     // console.error(err);
-       console.log("ERROR:", err.response?.data || err.message);
+      // console.error(err);
+      console.log("ERROR:", err.response?.data || err.message);
     }
   };
 
@@ -67,17 +132,17 @@ function Agents() {
 
   // ================= EDIT =================
   const handleEdit = (agent) => {
-    console.log(agent)
+    console.log(agent);
     setFormData({
-    name: agent.name,
-    company: agent.company || "",
-    email: agent.email,
-    mobile: agent.mobile,
-    status: agent.status || "Active",
-  });
+      name: agent.name,
+      company: agent.company || "",
+      email: agent.email,
+      mobile: agent.mobile,
+      status: agent.status || "Active",
+    });
 
-  setEditingId(agent.id);
-  setShowModal(true);
+    setEditingId(agent.id);
+    setShowModal(true);
   };
 
   return (
@@ -100,9 +165,17 @@ function Agents() {
             border: "none",
           }}
           onClick={() => {
-            setFormData({ name: "", company: "", email: "", mobile: "", status: "Active" });
-            setEditingId(null);
-            setShowModal(true);
+            setFormData({
+              name: "",
+              company: "",
+              email: "",
+              mobile: "",
+              status: "Active",
+            });
+              setEditingId(null);
+              localStorage.removeItem("editingId");
+              localStorage.removeItem("agentFormData");
+              setShowModal(true);
           }}
         >
           + Add Agent
@@ -293,7 +366,19 @@ function Agents() {
                 <button
                   type="button"
                   className="btn btn-light me-2"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingId(null);
+                    localStorage.removeItem("editingId");
+                    localStorage.removeItem("agentFormData");
+                    setFormData({
+                      name: "",
+                      company: "",
+                      email: "",
+                      mobile: "",
+                      status: "Active",
+                    });
+                  }}
                 >
                   Cancel
                 </button>
